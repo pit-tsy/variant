@@ -189,6 +189,8 @@ template <typename T>
 struct wrapped_value {
   T value;
 
+  constexpr wrapped_value() = default;
+
   template <typename... Args>
   constexpr explicit wrapped_value(Args&&... args) noexcept(std::is_nothrow_constructible_v<T, Args...>)
     requires std::is_constructible_v<T, Args...>
