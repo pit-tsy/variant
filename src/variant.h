@@ -76,7 +76,7 @@ struct variant_alternative<I, const T> {
 };
 
 template <class T>
-struct variant_size;
+struct variant_size {};
 
 template <class T>
 constexpr std::size_t variant_size_v = variant_size<std::remove_reference_t<T>>::value;
@@ -162,7 +162,7 @@ constexpr std::size_t get_index(index_sequence_t<Indices...>) {
 }
 
 template <typename Seq, std::size_t I>
-struct concat;
+struct concat {};
 
 template <std::size_t... Indices, std::size_t I>
 struct concat<index_sequence_t<Indices...>, I> {
@@ -577,14 +577,14 @@ public:
     );
   }
 
-  template <class T, typename selected_type = detail::select_type_t<T, variant>>
+  template <class T>
     requires (
         sizeof...(Types) > 0 && !std::is_same_v<std::remove_cvref_t<T>, variant> &&
         !detail::is_specialization_of_v<std::remove_cvref_t<T>, in_place_type_t> &&
         !detail::is_numeric_specialization_of_v<std::remove_cvref_t<T>, in_place_index_t> &&
         (detail::select_index_v<T, variant> != variant_npos)
     )
-  constexpr variant(T&& t) noexcept(std::is_nothrow_constructible_v<selected_type, T>)
+  constexpr variant(T&& t) noexcept(std::is_nothrow_constructible_v<detail::select_type_t<T, variant>, T>)
       : variant(in_place_index_t<detail::select_index_v<T, variant>>(), std::forward<T>(t)) {}
 
   template <class T, class... Args>
