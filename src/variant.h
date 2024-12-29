@@ -71,8 +71,7 @@ struct variant_alternative<I, variant<>> {
 };
 
 template <std::size_t I, class T>
-class variant_alternative<I, const T> {
-public:
+struct variant_alternative<I, const T> {
   using type = std::add_const_t<variant_alternative_t<I, T>>;
 };
 
@@ -83,7 +82,7 @@ template <class T>
 constexpr std::size_t variant_size_v = variant_size<std::remove_reference_t<T>>::value;
 
 template <class T>
-class variant_size<const T> : public std::integral_constant<std::size_t, variant_size_v<T>> {};
+struct variant_size<const T> : std::integral_constant<std::size_t, variant_size_v<T>> {};
 
 template <class... Types>
 struct variant_size<variant<Types...>> : std::integral_constant<std::size_t, sizeof...(Types)> {};
