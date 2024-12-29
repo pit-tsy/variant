@@ -185,13 +185,6 @@ struct make_index_sequence<0> {
   using type = index_sequence_t<>;
 };
 
-template <typename... Types>
-union variadic_union {
-  constexpr variadic_union() = default;
-
-  constexpr ~variadic_union() = default;
-};
-
 template <typename T>
 struct wrapped_value {
   T value;
@@ -201,11 +194,14 @@ struct wrapped_value {
     requires std::is_constructible_v<T, Args...>
       : value(std::forward<Args>(args)...) {}
 
-  constexpr T& get() noexcept {
-    return value;
-  }
-
   constexpr ~wrapped_value() = default;
+};
+
+template <typename... Types>
+union variadic_union {
+  constexpr variadic_union() = default;
+
+  constexpr ~variadic_union() = default;
 };
 
 template <typename Head, typename... Rest>
@@ -225,15 +221,14 @@ union variadic_union<Head, Rest...> {
 
   template <typename... Args>
   constexpr Head& emplace(Args&&... args) {
-    std::construct_at(std::addressof(head), std::forward<Args>(args)...);
-    return get();
+    return *std::construct_at(std::addressof(head), std::forward<Args>(args)...);
   }
 
   constexpr Head& get() {
-    return head.get();
+    return head;
   }
 
-  wrapped_value<Head> head;
+  Head head;
   variadic_union<Rest...> rest;
 };
 
@@ -258,12 +253,12 @@ constexpr void destroy(Union& u) {
 
 template <std::size_t I, typename... Types>
 constexpr nth_t<I, Types...>& get(variadic_union<Types...>& u) {
-  return union_i<I>(u).head.value;
+  return union_i<I>(u).head;
 }
 
 template <std::size_t I, typename Union>
 constexpr decltype(auto) get(Union&& u) {
-  return std::move(union_i<I>(u).head.value);
+  return std::move(union_i<I>(u).head);
 }
 
 template <typename T, std::size_t... sizes>
@@ -492,7 +487,7 @@ constexpr variant_alternative_t<I, variant<Types...>>& get(variant<Types...>& v)
   if (I != v.index()) {
     throw bad_variant_access();
   } else {
-    return detail::get<I>(v.union_);
+    return detail::get<I>(v.union_).value;
   }
 }
 
@@ -501,7 +496,7 @@ constexpr variant_alternative_t<I, variant<Types...>>&& get(variant<Types...>&& 
   if (I != v.index()) {
     throw bad_variant_access();
   } else {
-    return detail::get<I>(std::move(v.union_));
+    return detail::get<I>(std::move(v.union_)).value;
   }
 }
 
@@ -609,18 +604,12 @@ public:
   constexpr explicit variant(in_place_type_t<T>, Args&&... args)
       : variant(in_place_index<detail::select_index_v<T, variant>>, std::forward<Args>(args)...) {}
 
-  // template <class T, class U, class... Args>
-  // constexpr explicit variant(in_place_type_t<T>, std::initializer_list<U> il, Args&&... args);
-
   template <std::size_t I, class... Args>
     requires (I < sizeof...(Types)) && std::is_constructible_v<variant_alternative_t<I, variant>, Args...>
   constexpr explicit variant(in_place_index_t<I>, Args&&... args)
       : index_(I) {
     detail::emplace<I>(union_, std::forward<Args>(args)...);
   }
-
-  // template <std::size_t I, class U, class... Args>
-  // constexpr explicit variant(in_place_index_t<I>, std::initializer_list<U> il, Args&&... args);
 
   constexpr variant& operator=(const variant& rhs)
     requires (!detail::is_copy_assignable_v<Types...>)
@@ -797,12 +786,6 @@ public:
     index_ = variant_npos;
   }
 
-  // template <class T, class U, class... Args>
-  // constexpr T& emplace(std::initializer_list<U> il, Args&&... args);
-
-  // template <std::size_t I, class U, class... Args>
-  // constexpr variant_alternative_t<I, variant>& emplace(std::initializer_list<U> il, Args&&... args);
-
 private:
   template <std::size_t I, typename... Ts>
   friend constexpr variant_alternative_t<I, variant<Ts...>>& get(variant<Ts...>& v);
@@ -811,7 +794,7 @@ private:
   friend constexpr variant_alternative_t<I, variant<Ts...>>&& get(variant<Ts...>&& v);
 
 private:
-  detail::variadic_union<Types...> union_;
+  detail::variadic_union<detail::wrapped_value<Types>...> union_;
   std::size_t index_;
 };
 
