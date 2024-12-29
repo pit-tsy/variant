@@ -192,6 +192,18 @@ union variadic_union {
   constexpr ~variadic_union() = default;
 };
 
+template <typename T>
+struct wrapped_value {
+  T value;
+
+  template <typename... Args>
+  constexpr explicit wrapped_value(Args&&... args) noexcept(std::is_nothrow_constructible_v<T, Args...>)
+    requires std::is_constructible_v<T, Args...>
+      : value(std::forward<Args>(args)...) {}
+
+  constexpr ~wrapped_value() = default;
+};
+
 template <typename Head, typename... Rest>
 union variadic_union<Head, Rest...> {
   constexpr variadic_union()
@@ -209,14 +221,15 @@ union variadic_union<Head, Rest...> {
 
   template <typename... Args>
   constexpr Head& emplace(Args&&... args) {
-    return *std::construct_at(std::addressof(head), std::forward<Args>(args)...);
+    std::construct_at(std::addressof(head), std::forward<Args>(args)...);
+    return get();
   }
 
   constexpr Head& get() {
-    return head;
+    return head.value;
   }
 
-  Head head;
+  wrapped_value<Head> head;
   variadic_union<Rest...> rest;
 };
 
@@ -241,12 +254,12 @@ constexpr void destroy(Union& u) {
 
 template <std::size_t I, typename... Types>
 constexpr nth_t<I, Types...>& get(variadic_union<Types...>& u) {
-  return union_i<I>(u).head;
+  return union_i<I>(u).head.value;
 }
 
 template <std::size_t I, typename Union>
 constexpr decltype(auto) get(Union&& u) {
-  return std::move(union_i<I>(u).head);
+  return std::move(union_i<I>(u).head.value);
 }
 
 template <typename T, std::size_t... sizes>
