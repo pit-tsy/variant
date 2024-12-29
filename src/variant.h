@@ -7,7 +7,7 @@
 template <class... Types>
 class variant;
 
-inline constexpr std::size_t variant_npos = -1;
+inline constexpr std::size_t variant_npos = static_cast<std::size_t>(-1);
 
 class bad_variant_access : public std::exception {
 public:
@@ -209,8 +209,7 @@ union variadic_union<Head, Rest...> {
 
   template <typename... Args>
   constexpr Head& emplace(Args&&... args) {
-    std::construct_at(std::addressof(head), std::forward<Args>(args)...);
-    return head;
+    return *std::construct_at(std::addressof(head), std::forward<Args>(args)...);
   }
 
   constexpr Head& get() {
@@ -705,8 +704,9 @@ public:
     clear();
   }
 
-  constexpr void swap(variant& rhs
-  ) noexcept(((std::is_nothrow_move_constructible_v<Types> && std::is_nothrow_swappable_v<Types>) && ...)) {
+  constexpr void swap(variant& rhs) noexcept(
+      ((std::is_nothrow_move_constructible_v<Types> && std::is_nothrow_swappable_v<Types>) && ...)
+  ) {
     using std::swap;
     if (valueless_by_exception() && rhs.valueless_by_exception()) {
       return;
@@ -815,8 +815,8 @@ constexpr std::add_pointer_t<variant_alternative_t<I, variant<Types...>>> get_if
 }
 
 template <std::size_t I, class... Types>
-constexpr std::add_pointer_t<const variant_alternative_t<I, variant<Types...>>> get_if(const variant<Types...>* pv
-) noexcept {
+constexpr std::add_pointer_t<const variant_alternative_t<I, variant<Types...>>>
+get_if(const variant<Types...>* pv) noexcept {
   if (pv != nullptr && I == pv->index()) {
     return std::addressof(get<I>(*pv));
   }
