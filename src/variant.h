@@ -201,6 +201,10 @@ struct wrapped_value {
     requires std::is_constructible_v<T, Args...>
       : value(std::forward<Args>(args)...) {}
 
+  constexpr T& get() noexcept {
+    return value;
+  }
+
   constexpr ~wrapped_value() = default;
 };
 
@@ -226,7 +230,7 @@ union variadic_union<Head, Rest...> {
   }
 
   constexpr Head& get() {
-    return head.value;
+    return head.get();
   }
 
   wrapped_value<Head> head;
