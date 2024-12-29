@@ -704,9 +704,8 @@ public:
     clear();
   }
 
-  constexpr void swap(variant& rhs) noexcept(
-      ((std::is_nothrow_move_constructible_v<Types> && std::is_nothrow_swappable_v<Types>) && ...)
-  ) {
+  constexpr void swap(variant& rhs
+  ) noexcept(((std::is_nothrow_move_constructible_v<Types> && std::is_nothrow_swappable_v<Types>) && ...)) {
     using std::swap;
     if (valueless_by_exception() && rhs.valueless_by_exception()) {
       return;
@@ -815,8 +814,8 @@ constexpr std::add_pointer_t<variant_alternative_t<I, variant<Types...>>> get_if
 }
 
 template <std::size_t I, class... Types>
-constexpr std::add_pointer_t<const variant_alternative_t<I, variant<Types...>>>
-get_if(const variant<Types...>* pv) noexcept {
+constexpr std::add_pointer_t<const variant_alternative_t<I, variant<Types...>>> get_if(const variant<Types...>* pv
+) noexcept {
   if (pv != nullptr && I == pv->index()) {
     return std::addressof(get<I>(*pv));
   }
