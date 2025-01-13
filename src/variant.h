@@ -187,12 +187,28 @@ struct make_index_sequence<0> {
 
 template <typename T>
 struct wrapped_value {
-  T value;
+  T value{};
+
+  constexpr wrapped_value()
+    requires (std::is_default_constructible_v<T>)
+  = default;
 
   template <typename... Args>
   constexpr wrapped_value(Args&&... args) noexcept(std::is_nothrow_constructible_v<T, Args...>)
-    requires std::is_constructible_v<T, Args...>
+    requires (sizeof...(Args) > 0) && std::is_constructible_v<T, Args...>
       : value(std::forward<Args>(args)...) {}
+
+  // constexpr wrapped_value& operator=(const T& t)
+  //   requires (std::is_copy_constructible_v<T>)
+  // {
+  //   value = t;
+  // }
+  //
+  // constexpr wrapped_value& operator=(T&& t)
+  //   requires (std::is_move_assignable_v<T>)
+  // {
+  //   value = std::move(t);
+  // }
 
   constexpr ~wrapped_value() = default;
 };
@@ -217,6 +233,7 @@ union variadic_union<Head, Rest...> {
 
   constexpr void destroy() {
     std::destroy_at(std::addressof(head));
+    std::construct_at(std::addressof(rest));
   }
 
   template <typename... Args>
@@ -241,6 +258,16 @@ constexpr decltype(auto) union_i(Union& u) {
   }
 }
 
+template <std::size_t I, typename... Types>
+constexpr nth_t<I, Types...>& get(variadic_union<Types...>& u) {
+  return union_i<I>(u).head;
+}
+
+template <std::size_t I, typename... Types>
+constexpr nth_t<I, Types...>&& get(variadic_union<Types...>&& u) {
+  return std::move(union_i<I>(u).head);
+}
+
 template <std::size_t I, typename Union, typename... Args>
 constexpr decltype(auto) emplace(Union& u, Args&&... args) {
   return union_i<I>(u).emplace(std::forward<Args>(args)...);
@@ -248,17 +275,7 @@ constexpr decltype(auto) emplace(Union& u, Args&&... args) {
 
 template <std::size_t I, typename Union>
 constexpr void destroy(Union& u) {
-  return union_i<I>(u).destroy();
-}
-
-template <std::size_t I, typename... Types>
-constexpr nth_t<I, Types...>& get(variadic_union<Types...>& u) {
-  return union_i<I>(u).head;
-}
-
-template <std::size_t I, typename Union>
-constexpr decltype(auto) get(Union&& u) {
-  return std::move(union_i<I>(u).head);
+  union_i<I>(u).destroy();
 }
 
 template <typename T, std::size_t... sizes>
@@ -759,7 +776,6 @@ public:
 
   template <class T, class... Args>
   constexpr T& emplace(Args&&... args) {
-    // select_index_v
     return emplace<detail::find_type_v<T, Types...>>(std::forward<Args>(args)...);
   }
 
